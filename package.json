@@ -1,0 +1,26 @@
+{
+  "name": "electron-webpack-quick-start",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-webpack dev",
+    "compile": "electron-webpack",
+    "dist": "yarn compile && electron-builder",
+    "dist:dir": "yarn dist --dir -c.compression=store -c.mac.identity=null"
+  },
+  "dependencies": {
+    "@ngageoint/geopackage": "^3.0.7",
+    "ol": "^6.5.0",
+    "source-map-support": "^0.5.19"
+  },
+  "devDependencies": {
+    "electron": "^9.2.1",
+    "electron-builder": "^22.8.0",
+    "electron-rebuild": "^2.0.2",
+    "electron-webpack": "^2.8.2",
+    "webpack": "^4.44.1"
+  },
+  "resolutions": {
+    "better-sqlite3": "7.1.0"
+  }
+}
