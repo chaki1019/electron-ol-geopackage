@@ -1,4 +1,4 @@
-# ElectronでGeoPackageファイルを読み込み、OpenLayersで表示する
+# ElectronでGeoPackageファイルを読み込み、OpenLayersで表示
 
 ## データ
 国土数値情報から東京のバス停データを使用した。
