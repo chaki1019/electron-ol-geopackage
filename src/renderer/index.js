@@ -6,54 +6,35 @@ import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import XYZ from "ol/source/XYZ";
 import {fromLonLat} from 'ol/proj';
-import VectorTileLayer from 'ol/layer/VectorTile';
-import VectorTileSource from 'ol/source/VectorTile';
-import MVT from 'ol/format/MVT';
+import VectorLayer from 'ol/layer/Vector';
 import {Fill, Icon, Stroke, Style, Text, Circle} from 'ol/style';
-import zlib from 'zlib';
+import {Vector} from 'ol/source';
+import {GeoJSON} from 'ol/format';
+import {bbox} from 'ol/loadingstrategy';
 
 import fs, { read } from 'fs';
 import {remote, ipcRenderer} from 'electron';
 
-import {GeoPackageAPI} from '@ngageoint/geopackage'
+import {GeoPackageAPI, BoundingBox} from '@ngageoint/geopackage'
 
 const {BrowserWindow, dialog} = remote;
 
 const map = new Map({
-    target: document.getElementById('app'),
-    view: new View({
-        center: fromLonLat([136.93, 35.12]),
-        zoom: 15,
+  target: document.getElementById('app'),
+  view: new View({
+    // center: fromLonLat([136.93, 35.12]),
+    center: fromLonLat([139.68, 35.6]),
+    zoom: 15,
+  }),
+  layers: [
+    new TileLayer({
+      source: new XYZ({
+        url: "http://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      }),
+      minZoom: 0,
+      maxZoom: 23,
     }),
-    layers: [
-        new TileLayer({
-            source: new XYZ({
-                url: "http://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-            }),
-            minZoom: 0,
-            maxZoom: 17,
-        })
-    ]
-});
-
-var style = new Style({
-    fill: new Fill({
-        color: 'rgba(255, 255, 255, 0.6)',
-    }),
-    stroke: new Stroke({
-        color: '#319FD3',
-        width: 1,
-    }),
-    text: new Text({
-        font: '12px Calibri,sans-serif',
-        fill: new Fill({
-            color: '#000',
-        }),
-        stroke: new Stroke({
-            color: '#fff',
-            width: 3,
-        }),
-    }),
+  ]
 });
 
 //openFileボタンが押されたとき（ファイル名取得まで）
@@ -63,12 +44,12 @@ function openFile() {
         win,
         {
             properties: ['openFile'],
-            // filters: [
-            //     {
-            //         name: 'Document',
-            //         extensions: ['csv', 'txt']
-            //     }
-            // ]
+            filters: [
+                {
+                    name: 'GeoPackage',
+                    extensions: ['gpkg']
+                }
+            ]
         },
         // (fileNames) => {
         //     console.log('fileNames', fileNames);
@@ -92,72 +73,60 @@ async function readFile(path) {
 
     // get the info for the first table
     const featureDao = gpkg.getFeatureDao(tables[0])
+    // const indexed = await gpkg.indexFeatureTable(tables[0])
+    // console.log('indexed',indexed)
+    // const indexed2 = await gpkg.createGeometryIndexTable(featureDao);
+    // console.log('indexed2',indexed2)
+    // const featureDao = gpkg.getFeatureDaoWithTableName(tables[0])
     console.log('featureDao:getCount', featureDao.getCount())
 
     const info = gpkg.getInfoForTable(featureDao)
     console.log('info', info)
 
-    // query for all features
-                // featureDao.queryForEach((err, row, rowDone) => {
-                //     var feature = featureDao.getFeatureRow(row);
-                //     var geometry = currentRow.getGeometry();
-                //     if (geometry) {
-                //         var geoJson = geometry.geometry.toGeoJSON();
+    const source = new Vector({
+      format: new GeoJSON(),
+      loader: (extent, resolution, projection) => {
+        console.log(extent)
+        const bbox = new BoundingBox(extent[0], extent[2], extent[1], extent[3]);
+        // const featureIterator = featureDao.fastQueryWebMercatorBoundingBox(bbox);
+        const featureIterator = featureDao.queryIndexedFeaturesWithWebMercatorBoundingBox(bbox);
+        const features = [];
+        while (true) {
+          const {done, value} = featureIterator.next()
+          if (done) {
+            console.log('break!!!');
+            break;
+          }
 
-                //         geoJson.properties = {};
-                //         for (var key in feature.values) {
-                //         if(feature.values.hasOwnProperty(key) && key != feature.getGeometryColumn().name) {
-                //             var column = info.columnMap[key];
-                //             geoJson.properties[column.displayName] = currentRow.values[key];
-                //         }
-                //         }
-                //     }
-                //     rowDone();
-                // });
-
-    // new MBTiles(`${path}?mode=ro`, (err, mbtiles) => {
-    //     console.log(mbtiles); // mbtiles object with methods listed below
-    //     const towniiHouseLayer = new VectorTileLayer({
-    //         source: new VectorTileSource({
-    //             format: new MVT(),
-    //             url: 'http://localhost:3000/tile/townii/poly_water/{z}/{x}/{y}.mvt',
-    //             tileLoadFunction: (tile, url) => {
-    //                 tile.setLoader((extent, resolution, projection) => {
-    //                     const tileCoord = tile.getTileCoord();
-    //                     console.log('tileCoord', tileCoord);
-    //                     mbtiles.getTile(tileCoord[0], tileCoord[1], tileCoord[2], (err, data, headers) => {
-    //                         if (err) {
-    //                             console.error(err);
-    //                             return;
-    //                         }
-    //                         console.log('getTile', headers);
-    //                         zlib.gunzip(data, (err, bin) => {
-    //                             if (err) {
-    //                                 console.error(err);
-    //                                 return;
-    //                             }
-
-    //                             const format = tile.getFormat() // ol/format/MVT configured as source format
-    //                             const features = format.readFeatures(bin, {
-    //                                 extent: extent,
-    //                                 featureProjection: projection
-    //                             });
-
-    //                             tile.setFeatures(features);
-    //                         });
-    //                     });
-    //                 });
-    //             },
-    //         }),
-    //         minZoom: 12,
-    //         // maxZoom: 23,
-    //         style: (feature) => {
-    //             return style;
-    //         }
-    //     });
-
-    //     towniiHouseLayer.setMap(map);
-    // });
+          const geom = value.geometry;
+          if (geom) {
+            const geoJson = {
+              type: 'Feature'
+            }
+            geoJson.geometry = geom.toGeoJSON();
+            geoJson.properties = {};
+            for (var key in value.values) {
+              if (key === value.geometryColumn.name) {
+                continue;
+              }
+              geoJson.properties[key] = value.values[key];
+            }
+            features.push(geoJson)
+          }
+        }
+        // vectorSource.removeLoadedExtent(extent);
+        source.clear();
+        source.addFeatures(source.getFormat().readFeatures({
+          type: 'FeatureCollection',
+          features
+        }));
+      },
+      strategy: bbox
+    });
+    const vectorLayer = new VectorLayer({
+      source,
+    });
+    map.addLayer(vectorLayer)
 }
 
 ipcRenderer.on('open_file', (event, arg) => {
@@ -180,11 +149,6 @@ body {
 }
 `;
 document.head.appendChild(styles);
-    // const vueScript=document.createElement('script');
-// vueScript.setAttribute('type','text/javascript'),
-// vueScript.setAttribute('src','https://unpkg.com/vue'),
-// vueScript.onload=init,
-// document.head.appendChild(vueScript),
 
 setTimeout(() => {
     map.updateSize();

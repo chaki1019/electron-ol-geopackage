@@ -21,6 +21,6 @@
     "webpack": "^4.44.1"
   },
   "resolutions": {
-    "better-sqlite3": "7.1.0"
+    "better-sqlite3": "7.1.2"
   }
 }
